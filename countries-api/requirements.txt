@@ -1,0 +1,10 @@
+fastapi~=0.115.12      # High‑performance API framework
+uvicorn~=0.34.2        # ASGI server for FastAPI
+httpx~=0.28.1          # Async HTTP client
+motor~=3.7.1           # Async MongoDB driver
+pydantic~=2.11.4
+python-dotenv~=1.1.0   # Load .env environment variables
+pytest~=8.3.5          # Testing framework
+pytest-asyncio~=0.26.0 # Async support for pytest
+
+pymongo~=4.13.0
