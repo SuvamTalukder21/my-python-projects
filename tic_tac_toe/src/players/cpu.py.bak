@@ -1,0 +1,141 @@
+from src.players.base import BasePlayer as Player
+from src.utils.constants import EMPTY
+
+
+class CPUPlayer(Player):
+    """
+    Computer player with different difficulty levels
+    """
+    def __init__(self, symbol: str, name: str = "Computer", difficulty: str = "Easy"):
+        super().__init__(symbol, name)
+        self.difficulty = difficulty.lower()
+        self.engine = None  # Placeholder for game engine controller reference if needed
+
+    def make_move(self, board):
+        """
+        Choose move based on difficulty level
+        """
+        if self.difficulty.lower() == "hard":
+            return self.best_move(board)
+        elif self.difficulty.lower() == "medium":
+            return self.medium_move(board)
+        else:
+            return self.random_move(board)
+
+    def evaluate_moves(self, moves, game_state):
+        # Simple evaluation logic (to be improved with actual AI algorithms)
+        best_move = None
+        best_score = float('-inf')
+        for move in moves:
+            score = self.simulate_move(move, game_state)
+            if score > best_score:
+                best_score = score
+                best_move = move
+        return best_move
+
+    def simulate_move(self, move, game_state):
+        # Simulate the move and return a score based on the resulting game state
+        simulated_state = game_state.clone()
+        simulated_state.apply_move(self, move)
+        return simulated_state.evaluate_for_player(self)
+
+    @staticmethod
+    def _check_winner(state, symbol):
+        """
+        Local win check that operates on the given board state (not the engine's
+        real board), so minimax simulations are fully isolated.
+        """
+        size = state.size
+        grid = state.grid
+
+        for i in range(size):
+            if all(grid[i][j] == symbol for j in range(size)):
+                return True
+            if all(grid[j][i] == symbol for j in range(size)):
+                return True
+
+        if all(grid[i][i] == symbol for i in range(size)):
+            return True
+        if all(grid[i][size - 1 - i] == symbol for i in range(size)):
+            return True
+
+        return False
+
+    def best_move(self, board):
+        opponent_symbol = 'O' if self.symbol == 'X' else 'X'
+
+        def minimax(state, depth, is_maximizing, alpha, beta):
+            # Use local _check_winner so we inspect the simulated state,
+            # NOT the engine's real board reference.
+            if self._check_winner(state, self.symbol):
+                return 10 - depth
+            elif self._check_winner(state, opponent_symbol):
+                return depth - 10
+            elif state.is_full():
+                return 0
+
+            if is_maximizing:
+                max_eval = float('-inf')
+
+                for move in state.get_available_moves():
+                    row, col = move
+                    state.make_move(row, col, self.symbol)
+
+                    eval = minimax(state, depth + 1, False, alpha, beta)
+
+                    state.grid[row][col] = EMPTY  # direct undo
+
+                    max_eval = max(max_eval, eval)
+                    alpha = max(alpha, eval)
+
+                    if beta <= alpha:
+                        break
+
+                return max_eval
+
+            else:
+                min_eval = float('inf')
+
+                for move in state.get_available_moves():
+                    row, col = move
+                    state.make_move(row, col, opponent_symbol)
+
+                    eval = minimax(state, depth + 1, True, alpha, beta)
+
+                    state.grid[row][col] = EMPTY  # direct undo
+
+                    min_eval = min(min_eval, eval)
+                    beta = min(beta, eval)
+
+                    if beta <= alpha:
+                        break
+
+                return min_eval
+
+        best_score = float('-inf')
+        best_move = None
+
+        for move in board.get_available_moves():
+            row, col = move
+            board.make_move(row, col, self.symbol)
+
+            score = minimax(board, 0, False, float('-inf'), float('inf'))
+
+            board.grid[row][col] = EMPTY  # direct undo — fixes the outer loop bug
+
+            if score > best_score:
+                best_score = score
+                best_move = move
+
+        return best_move
+
+    def medium_move(self, game_state):
+        """Medium difficulty - pick middle available move"""
+        available_moves = game_state.get_available_moves()
+        return available_moves[len(available_moves) // 2]
+
+    def random_move(self, game_state):
+        """Easy difficulty - pick random move"""
+        import random
+        available_moves = game_state.get_available_moves()
+        return random.choice(available_moves)
